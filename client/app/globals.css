@@ -1,0 +1,13 @@
+/* client/app/globals.css */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Le reste de vos styles personnalisés (corps, police, etc.) */
+body {
+  /* Assurez-vous que cette police est définie via les variables Tailwind dans layout.jsx */
+  font-family: var(--font-tajawal), sans-serif;
+  color: #1f2937;
+  background-color: #f9fafb;
+}
