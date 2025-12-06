@@ -3,6 +3,8 @@
 const Subscription = require('../models/Subscription');
 const Token = require('../models/Token'); // Modèle pour les tokens d'activation
 const User = require('../models/User'); // Pour mettre à jour l'utilisateur après activation
+// Importation de la fonction logActivity
+const { logActivity } = require('./activityController'); 
 
 // @desc    Obtenir l'abonnement actif de l'utilisateur
 // @route   GET /api/subscriptions/mine
@@ -32,6 +34,7 @@ exports.createSubscription = async (req, res) => {
     const { planName, endDate } = req.body;
     
     try {
+        // Annuler les abonnements actifs précédents
         await Subscription.updateMany({ user: req.user._id, status: 'active' }, { status: 'expired' });
 
         const newSubscription = await Subscription.create({
@@ -40,6 +43,17 @@ exports.createSubscription = async (req, res) => {
             endDate,
             status: 'active',
         });
+        
+        // --- LOG ACTIVITÉ : Achat/Création d'abonnement ---
+        logActivity(
+            req.user._id, 
+            req.user.name, 
+            req.user.role, 
+            'subscription_purchase', 
+            `قام بشراء واشترك في خطة: ${planName}.`,
+            '/dashboard/subscription'
+        );
+        // -------------------------------------------------
 
         res.status(201).json({ 
             message: `Abonnement '${planName}' créé avec succès.`, 
@@ -95,20 +109,30 @@ exports.validateToken = async (req, res) => {
         
         const newSubscription = await Subscription.create({
             user: currentUserId,
-            planName: "Token Access", // Maintenant valide grâce à la mise à jour du modèle
+            planName: "Token Access", 
             endDate: tokenDoc.contractExpirationDate,
             status: 'active',
         });
         
         // b) Marquer le token comme consommé
-        console.log(`[TOKEN CONSUMPTION] Marking token ${soldToken} as consumed.`); // Log de vérification
         tokenDoc.isConsumed = true;
         tokenDoc.assignedToUser = currentUserId;
-        await tokenDoc.save(); // <-- Cette ligne va mettre à jour le statut dans la BD
+        await tokenDoc.save(); 
 
         // c) Mettre à jour l'utilisateur (deviceId)
         await User.findByIdAndUpdate(currentUserId, { deviceId: deviceId }); 
         
+        // --- LOG ACTIVITÉ : Activation de Token réussie ---
+        logActivity(
+            req.user._id, 
+            req.user.name, 
+            req.user.role, 
+            'subscription_activate_token', 
+            `قام بتفعيل اشتراكه بنجاح باستخدام رمز التفعيل.`,
+            '/dashboard/subscription'
+        );
+        // ---------------------------------------------------
+
         res.status(200).json({ 
             status: "SUCCESS", 
             message: "Activation réussie. Votre abonnement est actif.",
@@ -118,7 +142,6 @@ exports.validateToken = async (req, res) => {
     } catch (error) {
         // En cas d'erreur inattendue
         console.error("Token Validation Fatal Error:", error);
-        // On envoie un message d'erreur clair pour le Front-end
         res.status(500).json({ status: "INTERNAL_ERROR", error: "Erreur interne du serveur lors de l'activation. Vérifiez la console pour les détails." }); 
     }
 };

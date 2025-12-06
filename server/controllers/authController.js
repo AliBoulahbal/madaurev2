@@ -2,6 +2,8 @@
 
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+// Importation de la fonction logActivity
+const { logActivity } = require('./activityController'); 
 
 // Fonction utilitaire pour générer le token JWT
 const generateToken = (id) => {
@@ -31,6 +33,17 @@ exports.registerUser = async (req, res) => {
     });
 
     if (user) {
+        // --- LOG ACTIVITÉ : Enregistrement réussi ---
+        logActivity(
+            user._id, 
+            user.name, 
+            user.role, 
+            'user_register', 
+            `أنشأ حساباً جديداً بنجاح.`,
+            '/dashboard'
+        );
+        // ------------------------------------------
+
         res.status(201).json({
             _id: user._id,
             name: user.name,
@@ -52,6 +65,18 @@ exports.loginUser = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
+        
+        // --- LOG ACTIVITÉ : Connexion réussie ---
+        logActivity(
+            user._id, 
+            user.name, 
+            user.role, 
+            'user_login', 
+            `تم تسجيل الدخول إلى لوحة التحكم بنجاح.`,
+            '/dashboard'
+        );
+        // --------------------------------------
+
         res.json({
             _id: user._id,
             name: user.name,

@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const mongoose = require('mongoose');
+// Importation de la fonction logActivity depuis le nouveau contrôleur
+const { logActivity } = require('./activityController'); 
 
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -11,7 +13,7 @@ const generateToken = (id) => {
     });
 };
 
-// @desc    Register new user (Public, Student by default)
+// @desc    Register new user
 // @route   POST /api/auth/register
 // @access  Public
 exports.registerUser = async (req, res) => {
@@ -28,16 +30,29 @@ exports.registerUser = async (req, res) => {
             return res.status(400).json({ message: 'Utilisateur existe déjà' });
         }
 
-        // Le rôle est TOUJOURS 'student' par cette route publique
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
         const user = await User.create({
             name,
             email,
-            password, // Mongoose pre-save middleware hache le mot de passe
-            role: 'student', 
-            branch: branch || 'General',
+            password: hashedPassword,
+            role: 'student', // Rôle par défaut
+            branch: branch || 'Science',
         });
 
         if (user) {
+            // --- LOG ACTIVITÉ : Enregistrement réussi ---
+            logActivity(
+                user._id, 
+                user.name, 
+                user.role, 
+                'user_register', 
+                `أنشأ حساباً جديداً بنجاح.`,
+                '/dashboard'
+            );
+            // ------------------------------------------
+
             res.status(201).json({
                 _id: user.id,
                 name: user.name,
@@ -45,59 +60,6 @@ exports.registerUser = async (req, res) => {
                 role: user.role,
                 branch: user.branch,
                 token: generateToken(user._id),
-            });
-        } else {
-            res.status(400).json({ message: 'Données utilisateur invalides' });
-        }
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-// --- NOUVELLE FONCTION ADMIN D'AJOUT ---
-
-// @desc    Create new user with specified role (Admin only)
-// @route   POST /api/users
-// @access  Private (Admin)
-exports.createUserByAdmin = async (req, res) => {
-    const { name, email, password, role, branch } = req.body;
-
-    // L'Admin doit spécifier tous les champs
-    if (!name || !email || !password || !role) {
-        return res.status(400).json({ message: 'Veuillez ajouter tous les champs requis (nom, email, mot de passe, rôle).' });
-    }
-    
-    // Validation simple du rôle
-    if (!['student', 'teacher', 'admin'].includes(role)) {
-        return res.status(400).json({ message: 'Rôle spécifié invalide.' });
-    }
-
-    try {
-        const userExists = await User.findOne({ email });
-
-        if (userExists) {
-            return res.status(400).json({ message: 'Un utilisateur avec cet email existe déjà.' });
-        }
-        
-        // Création de l'utilisateur avec le rôle spécifié par l'Admin
-        const user = await User.create({
-            name,
-            email,
-            password, // Le hachage est géré par le middleware pre-save
-            role: role, 
-            branch: branch || 'General',
-        });
-
-        if (user) {
-            // Retourner les informations de l'utilisateur sans le mot de passe
-            res.status(201).json({
-                success: true,
-                message: 'Utilisateur créé avec succès.',
-                _id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                branch: user.branch,
             });
         } else {
             res.status(400).json({ message: 'Données utilisateur invalides' });
@@ -114,12 +76,25 @@ exports.loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // Remplacez 'User.findOne({ email })' si le mot de passe n'est pas sélectionné
-        const user = await User.findOne({ email }).select('+password');
+        const user = await User.findOne({ email });
 
+        // NOTE: Dans votre modèle User.js, 'matchPassword' est une méthode d'instance qui compare les mots de passe hachés.
         if (user && (await user.matchPassword(password))) {
-            res.json({
-                _id: user.id,
+            
+            // --- ENREGISTREMENT DE L'ACTIVITÉ ---
+            // 1. Appel de logActivity APRES la connexion réussie
+            logActivity(
+                user._id, 
+                user.name, 
+                user.role, 
+                'user_login', // Type d'action
+                `تم تسجيل الدخول إلى لوحة التحكم بنجاح.`, // Description en arabe
+                '/dashboard' // Lien vers le tableau de bord
+            );
+            // -------------------------------------
+
+            res.status(200).json({
+                _id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
@@ -127,7 +102,8 @@ exports.loginUser = async (req, res) => {
                 token: generateToken(user._id),
             });
         } else {
-            res.status(400).json({ message: 'Identifiants invalides' });
+            // Le message d'erreur est ajusté pour correspondre à votre fragment précédent
+            res.status(401).json({ message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' });
         }
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -138,7 +114,6 @@ exports.loginUser = async (req, res) => {
 // @route   GET /api/users/me
 // @access  Private
 exports.getMe = async (req, res) => {
-    // req.user est déjà défini par le middleware 'protect'
     res.status(200).json(req.user);
 };
 
@@ -177,11 +152,9 @@ exports.updateUserByAdmin = async (req, res) => {
         return res.status(400).json({ message: 'ID utilisateur invalide' });
     }
     
-    // Admin ne peut pas modifier son propre rôle ou supprimer son propre compte (règle non implémentée, mais bonne pratique)
+    // Règle de sécurité: Admin ne peut pas modifier son propre compte via cette route.
     if (req.params.id === req.user._id.toString()) {
-        if (req.body.role) {
-             return res.status(403).json({ message: 'Impossible de modifier votre propre rôle via cette route.' });
-        }
+        return res.status(403).json({ message: 'Impossible de modifier votre propre compte via cette route.' });
     }
 
     try {
@@ -192,24 +165,28 @@ exports.updateUserByAdmin = async (req, res) => {
         }
         
         // Mettre à jour seulement les champs autorisés par l'Admin (rôle, nom, branche, etc.)
-        const { role, name, branch, password } = req.body;
+        const { role, name, branch } = req.body;
 
         const fieldsToUpdate = {};
         if (role) fieldsToUpdate.role = role;
         if (name) fieldsToUpdate.name = name;
         if (branch) fieldsToUpdate.branch = branch;
-        // La modification du mot de passe doit être gérée par un processus séparé si nécessaire
-        // Si le mot de passe est fourni, le hacher avant la mise à jour
-        if (password) {
-            const salt = await bcrypt.genSalt(10);
-            fieldsToUpdate.password = await bcrypt.hash(password, salt);
-        }
-
 
         const updatedUser = await User.findByIdAndUpdate(req.params.id, fieldsToUpdate, {
             new: true,
             runValidators: true,
         }).select('-password');
+        
+        // --- LOG ACTIVITÉ : Mise à jour par Admin ---
+        logActivity(
+            req.user._id,
+            req.user.name,
+            req.user.role,
+            'admin_user_update',
+            `قام بتحديث حساب المستخدم ${updatedUser.name} (ID: ${updatedUser._id.toString().substring(0, 5)}...).`,
+            `/admin/users`
+        );
+        // ------------------------------------------
 
         res.status(200).json(updatedUser);
 
@@ -226,16 +203,34 @@ exports.deleteUser = async (req, res) => {
         return res.status(400).json({ message: 'ID utilisateur invalide' });
     }
     
+    // Règle de sécurité: Admin ne peut pas supprimer son propre compte via cette route.
     if (req.params.id === req.user._id.toString()) {
         return res.status(403).json({ message: 'Impossible de supprimer votre propre compte via cette route.' });
     }
 
     try {
+        const userToDelete = await User.findById(req.params.id);
+        
+        if (!userToDelete) {
+             return res.status(404).json({ message: 'Utilisateur non trouvé' });
+        }
+        
         const result = await User.deleteOne({ _id: req.params.id });
 
         if (result.deletedCount === 0) {
             return res.status(404).json({ message: 'Utilisateur non trouvé' });
         }
+        
+        // --- LOG ACTIVITÉ : Suppression par Admin ---
+        logActivity(
+            req.user._id,
+            req.user.name,
+            req.user.role,
+            'admin_user_delete',
+            `قام بحذف حساب المستخدم: ${userToDelete.name}.`,
+            `/admin/users`
+        );
+        // ------------------------------------------
 
         res.status(200).json({ message: 'Utilisateur supprimé avec succès' });
 

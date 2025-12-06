@@ -1,7 +1,7 @@
-// server/controllers/lessonController.js
-
-const Lesson = require('../models/Lesson');
 const mongoose = require('mongoose');
+const Lesson = require('../models/Lesson'); // Assumer que vous avez un modèle Lesson
+// Importation de la fonction logActivity depuis le nouveau contrôleur d'activité
+const { logActivity } = require('./activityController'); 
 
 // @desc    Créer une nouvelle leçon
 // @route   POST /api/lessons
@@ -41,6 +41,17 @@ exports.createLesson = async (req, res) => {
             content: cleanedContent,
             status: 'scheduled',
         });
+        
+        // --- LOG ACTIVITÉ : Création de Leçon par Admin/Teacher ---
+        logActivity(
+            req.user._id,
+            req.user.name,
+            req.user.role,
+            'content_lesson_create',
+            `أنشأ الدرس الجديد: "${newLesson.title}" (${newLesson.subject}).`,
+            `/admin/lessons/${newLesson._id}`
+        );
+        // -----------------------------------------------------
 
         // Si la création réussit, la redirection Front-end doit avoir lieu
         res.status(201).json(newLesson);
@@ -60,9 +71,13 @@ exports.createLesson = async (req, res) => {
     }
 };
 
-// ... autres fonctions (getAllLessons, getLessonById, updateLesson, deleteLesson)
+
+// @desc    Obtenir toutes les leçons (pour la page dashboard/lessons)
+// @route   GET /api/lessons
+// @access  Private
 exports.getAllLessons = async (req, res) => {
     try {
+        // Dans une application réelle, on filtrerait par la branche de l'utilisateur (req.user.branch)
         const lessons = await Lesson.find({ status: { $ne: 'cancelled' } })
                                     .populate('teacher', 'name email')
                                     .sort({ startTime: 1 });
@@ -72,6 +87,9 @@ exports.getAllLessons = async (req, res) => {
     }
 };
 
+// @desc    Obtenir une seule leçon par ID
+// @route   GET /api/lessons/:id
+// @access  Private
 exports.getLessonById = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({ message: 'ID de leçon invalide' });
@@ -87,6 +105,46 @@ exports.getLessonById = async (req, res) => {
     }
 };
 
+// @desc    Marquer une leçon comme complétée par l'utilisateur (ACTION ÉTUDIANT)
+// @route   POST /api/lessons/:id/complete
+// @access  Private
+exports.markLessonAsComplete = async (req, res) => {
+    const lessonId = req.params.id;
+    const userId = req.user._id;
+    const userName = req.user.name;
+    const userRole = req.user.role;
+
+    try {
+        const lesson = await Lesson.findById(lessonId);
+
+        if (!lesson) {
+            return res.status(404).json({ message: 'Leçon non trouvée.' });
+        }
+        
+        // **********************************************
+        // LOGIQUE D'ENREGISTREMENT DE L'ACTIVITÉ
+        // **********************************************
+        logActivity(
+            userId,
+            userName,
+            userRole,
+            'lesson_completed', 
+            `أكملت درس "${lesson.title}" في المادة ${lesson.subject || 'غير محدد'}.`, 
+            `/dashboard/lessons/${lessonId}`
+        );
+        
+        // NOTE: Ici, vous ajouteriez la logique réelle pour enregistrer l'état de complétion.
+        
+        res.status(200).json({ message: 'Leçon marquée comme complétée et activité مسجلة.' });
+
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur lors de la mise à jour de l\'état de la leçon.' });
+    }
+};
+
+// @desc    Mettre à jour une leçon
+// @route   PUT /api/lessons/:id
+// @access  Private (Teacher/Admin)
 exports.updateLesson = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({ message: 'ID de leçon invalide' });
@@ -96,23 +154,63 @@ exports.updateLesson = async (req, res) => {
         if (!updatedLesson) {
             return res.status(404).json({ message: 'Leçon non trouvée' });
         }
+        
+        // --- LOG ACTIVITÉ : Mise à jour par Admin/Teacher ---
+        logActivity(
+            req.user._id,
+            req.user.name,
+            req.user.role,
+            'content_lesson_update',
+            `قام بتحديث الدرس: "${updatedLesson.title}".`,
+            `/admin/lessons/${updatedLesson._id}`
+        );
+        // -----------------------------------------------------
+        
         res.status(200).json(updatedLesson);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
 };
 
+// @desc    Supprimer une leçon
+// @route   DELETE /api/lessons/:id
+// @access  Private (Teacher/Admin)
 exports.deleteLesson = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({ message: 'ID de leçon invalide' });
     }
     try {
+        const lessonToDelete = await Lesson.findById(req.params.id);
+
         const result = await Lesson.deleteOne({ _id: req.params.id });
         if (result.deletedCount === 0) {
             return res.status(404).json({ message: 'Leçon non trouvée' });
         }
+        
+        // --- LOG ACTIVITÉ : Suppression par Admin/Teacher ---
+        if (lessonToDelete) {
+             logActivity(
+                req.user._id,
+                req.user.name,
+                req.user.role,
+                'content_lesson_delete',
+                `قام بحذف الدرس: "${lessonToDelete.title}".`,
+                `/admin/lessons`
+            );
+        }
+        // -----------------------------------------------------
+        
         res.status(200).json({ message: 'Leçon supprimée avec succès' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
+};
+
+module.exports = {
+    getAllLessons,
+    getLessonById,
+    markLessonAsComplete,
+    createLesson,
+    updateLesson,
+    deleteLesson,
 };

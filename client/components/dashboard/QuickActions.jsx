@@ -8,7 +8,7 @@ import Link from 'next/link';
 const actions = [
   { label: 'إنشاء تذكرة دعم', icon: <FiUsers />, href: '/dashboard/support', variant: 'secondary' },
   { label: 'تحميل ملخص جديد', icon: <FiDownload />, href: '/dashboard/summaries', variant: 'secondary' },
-  { label: 'إضافة درس مباشر', icon: <FiPlus />, href: '/dashboard/live-lessons', variant: 'primary' },
+ // { label: 'إضافة درس مباشر', icon: <FiPlus />, href: '/dashboard/live-lessons', variant: 'primary' },
 ];
 
 const QuickActions = () => {

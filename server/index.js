@@ -55,10 +55,18 @@ app.use('/api/admin', adminRoutes); // Route pour les statistiques et outils Adm
 app.use('/api/users', userRoutes);
 app.use('/api/teachers', userRoutes); 
 
+
 // Route de test simple
 app.get('/', (req, res) => {
     res.send('API MADAURE Running...');
 });
+
+const activityRoutes = require('./routes/activities');
+// ...
+app.use('/api/activities', activityRoutes); 
+// ...
+
+
 
 // Lancement du serveur
 const PORT = process.env.PORT || 5000;
