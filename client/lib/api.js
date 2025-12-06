@@ -12,26 +12,59 @@ const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000/a
 export const api = axios.create({
   baseURL: BASE_URL,
   headers: {
+    // Le Content-Type est essentiel pour que Express puisse parser le JSON
     'Content-Type': 'application/json',
   },
   // Permet d'inclure les cookies si nécessaire (bien que nous utilisions JWT dans localStorage)
   withCredentials: true, 
 });
 
+// Stocker le token dans une variable accessible par les intercepteurs (solution plus propre)
+let authToken = null;
+
+/**
+ * Fonction publique appelée par AuthContext pour définir le JWT après login/register
+ * @param {string | null} token - Le jeton JWT ou null pour déconnexion
+ */
+export const setAuthToken = (token) => {
+    authToken = token;
+    
+    // Si le token est null, on efface aussi l'en-tête global
+    if (!token) {
+        delete api.defaults.headers.common['Authorization'];
+    }
+};
+
 // ==========================================================
 // 2. Intercepteur de Requête (Ajout du Token)
 // ==========================================================
 api.interceptors.request.use(
   (config) => {
-    // Récupérer le token depuis le localStorage.
-    // NOTE: Nous supposons que le token JWT est stocké directement (sans l'objet utilisateur entier).
-    const user = JSON.parse(localStorage.getItem('user'));
-    const token = user?.token;
-
-    if (token) {
-      // Ajoute le token à l'en-tête Authorization pour toutes les requêtes
-      config.headers.Authorization = `Bearer ${token}`;
+    
+    // ** CORRECTION CLÉ : Utiliser la variable globale authToken **
+    if (authToken) {
+      config.headers.Authorization = `Bearer ${authToken}`;
+    } else if (typeof window !== 'undefined') {
+        // Fallback: Tentative de récupération depuis localStorage pour les rafraîchissements
+        try {
+            const userData = localStorage.getItem('user');
+            if (userData) {
+                const user = JSON.parse(userData);
+                const token = user?.token;
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`;
+                    authToken = token; // Mise à jour de la variable globale pour les requêtes futures
+                }
+            }
+        } catch (e) {
+            console.error("Erreur de lecture/parsing du token dans localStorage:", e);
+        }
     }
+    
+    if (!config.headers.Authorization && config.url !== '/auth/login' && config.url !== '/auth/register') {
+        console.warn(`[API] Requête vers ${config.url} sans JWT.`);
+    }
+
     return config;
   },
   (error) => {
@@ -44,32 +77,18 @@ api.interceptors.request.use(
 // ==========================================================
 api.interceptors.response.use(
   (response) => {
-    // Les réponses réussies sont passées directement
     return response;
   },
   (error) => {
-    const originalRequest = error.config;
     
     // Vérifie si l'erreur est liée à l'authentification (401 Unauthorized ou 403 Forbidden)
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       
-      console.error('API Error 401/403: Token expiré ou invalide. Déconnexion forcée.');
+      console.error('API Error 401/403: Token expiré ou invalide. Tentative de déconnexion.');
       
-      // Assurez-vous d'exécuter la déconnexion côté client (dans le navigateur)
-      if (typeof window !== 'undefined' && !originalRequest._retry) {
-          // Pour éviter les boucles infinies de déconnexion si l'intercepteur s'active plusieurs fois
-          originalRequest._retry = true; 
-          
-          // Déclenche la déconnexion globale
-          // NOTE: Nous ne pouvons pas appeler `useAuth` directement ici. 
-          // La solution la plus simple est de forcer la suppression du token 
-          // et de rediriger, et de laisser AuthContext s'en rendre compte.
-          localStorage.removeItem('user');
-          
-          // Redirection vers la page de connexion (si elle existe)
-          // La redirection doit être gérée par le contexte/router de Next.js pour être propre.
-          // Pour un simple reset dans l'intercepteur :
-          window.location.href = '/login'; 
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user');
+        window.location.href = '/login'; 
       }
     }
 

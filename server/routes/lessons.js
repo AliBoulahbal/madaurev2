@@ -1,14 +1,26 @@
-// server/src/routes/lessons.js
+// server/routes/lessons.js
 
 const express = require('express');
-const { getLessons, createLesson } = require('../controllers/lessonController');
-const { protect } = require('../middleware/auth'); // Nous allons créer ce middleware
+const { 
+    createLesson, 
+    getAllLessons, 
+    getLessonById, 
+    updateLesson, 
+    deleteLesson 
+} = require('../controllers/lessonController');
+const { protect, authorizeRoles } = require('../middleware/auth');
 const router = express.Router();
 
-// Route pour l'obtention des leçons (accessible aux utilisateurs connectés)
-router.route('/').get(protect, getLessons);
+// Public: Route pour récupérer toutes les leçons (accessibles par les étudiants)
+router.route('/').get(protect, getAllLessons); 
 
-// Route pour la création de leçons (accessible uniquement aux profs/admins)
-router.route('/').post(protect, createLesson);
+// Private (Teacher/Admin): Route pour créer une nouvelle leçon
+router.route('/').post(protect, authorizeRoles(['admin', 'teacher']), createLesson);
+
+// Route pour obtenir, mettre à jour ou supprimer une leçon spécifique
+router.route('/:id')
+    .get(protect, getLessonById)
+    .put(protect, authorizeRoles(['admin', 'teacher']), updateLesson)
+    .delete(protect, authorizeRoles(['admin', 'teacher']), deleteLesson);
 
 module.exports = router;

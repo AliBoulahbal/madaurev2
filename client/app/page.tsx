@@ -69,7 +69,7 @@ const HomePage = () => {
              <div className="p-8 bg-white rounded-xl shadow-lg border-t-4 border-madaure-primary">
                 <h3 className="text-2xl font-bold mb-2">الباقة الذهبية</h3>
                 <p className="text-5xl font-extrabold text-gray-900">
-                    99 <span className="text-xl font-medium">د.م / شهر</span>
+                    3500 <span className="text-xl font-medium">د.ج / لسنة</span>
                 </p>
                 <ul className="mt-6 space-y-3 text-gray-700">
                     <li className="flex items-center justify-center gap-2"><FiCheckCircle className="text-green-500" /> وصول غير محدود لجميع الدروس</li>

@@ -1,29 +1,26 @@
-// server/src/models/Summary.js
+// server/models/Summary.js
 
 const mongoose = require('mongoose');
 
 const summarySchema = mongoose.Schema({
     title: {
         type: String,
-        required: true,
+        required: [true, 'Le titre du résumé est requis.'],
         trim: true,
     },
     subject: {
         type: String,
-        required: true,
-    },
-    description: {
-        type: String,
-        default: 'ملخص شامل للمادة.',
+        required: [true, 'Le sujet (matière) du résumé est requis.'],
+        trim: true,
     },
     fileUrl: {
-        type: String, // Lien vers le fichier (ex: PDF stocké sur Cloudinary)
-        required: true,
+        type: String,
+        required: [true, 'L\'URL du fichier est requise.'],
     },
     teacher: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true,
+        required: [true, 'L\'ID du professeur est requis.'],
+        ref: 'User', // Fait référence au modèle User
     },
     downloadsCount: {
         type: Number,

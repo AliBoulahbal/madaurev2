@@ -1,5 +1,4 @@
-// server/src/models/Subscription.js
-
+// server/models/Subscription.js
 const mongoose = require('mongoose');
 
 const subscriptionSchema = mongoose.Schema({
@@ -7,12 +6,12 @@ const subscriptionSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
-        unique: true,
     },
     planName: {
         type: String,
         required: true,
-        enum: ['Bronze', 'Silver', 'Gold', 'Annual'],
+        // ** CORRECTION CLÉ : Ajouter la valeur 'Token Access' à l'énumération **
+        enum: ['Basic', 'Premium', 'Token Access', 'Trial'], 
     },
     startDate: {
         type: Date,
@@ -26,11 +25,6 @@ const subscriptionSchema = mongoose.Schema({
         type: String,
         enum: ['active', 'expired', 'cancelled'],
         default: 'active',
-    },
-    // ID de référence pour le paiement externe (Stripe, PayPal)
-    externalSubscriptionId: { 
-        type: String,
-        default: null,
     }
 }, {
     timestamps: true,

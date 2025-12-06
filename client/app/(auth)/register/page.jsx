@@ -1,7 +1,7 @@
 // client/app/(auth)/register/page.jsx
 "use client";
 import { useState } from 'react';
-import useAuth from '@/hooks/useAuth'; // <-- Utilisation du hook
+import { useAuth } from '@/contexts/AuthContext'; // <-- CORRECTION : Importation nommée depuis AuthContext
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
@@ -20,7 +20,7 @@ const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-        setError("Les mots de passe ne correspondent pas.");
+        setError("كلمتا المرور غير متطابقتين.");
         return;
     }
 
@@ -29,23 +29,59 @@ const RegisterPage = () => {
         await register(formData.name, formData.email, formData.password);
         // Redirection gérée par le contexte
     } catch (err) {
-        setError(err.message || "Échec de l'inscription.");
+        setError(err.message || "فشل في التسجيل. يرجى المحاولة لاحقاً.");
     } finally {
         setLoading(false);
     }
   };
 
   return (
-    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-      {/* ... (Inputs Name, Email, Password, ConfirmPassword) ... */}
-
+    <form className="mt-8 space-y-6" onSubmit={handleSubmit} dir="rtl">
+      <Input
+        type="text"
+        name="name"
+        placeholder="الاسم الكامل"
+        value={formData.name}
+        onChange={handleChange}
+        required
+      />
+      <Input
+        type="email"
+        name="email"
+        placeholder="البريد الإلكتروني"
+        value={formData.email}
+        onChange={handleChange}
+        required
+      />
+      <Input
+        type="password"
+        name="password"
+        placeholder="كلمة المرور"
+        value={formData.password}
+        onChange={handleChange}
+        required
+      />
+      <Input
+        type="password"
+        name="confirmPassword"
+        placeholder="تأكيد كلمة المرور"
+        value={formData.confirmPassword}
+        onChange={handleChange}
+        required
+      />
+      
       {error && <div className="text-red-600 text-center border border-red-200 bg-red-50 p-2 rounded-md">{error}</div>}
 
       <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Inscription en cours..." : "S'inscrire"}
+        {loading ? "جاري التسجيل..." : "سجل الآن"}
       </Button>
-      
-      {/* ... (Lien vers Login) ... */}
+
+      <div className="text-center text-sm">
+        لديك حساب بالفعل؟{' '}
+        <Link href="/login" className="font-medium text-madaure-primary hover:text-madaure-dark">
+          تسجيل الدخول
+        </Link>
+      </div>
     </form>
   );
 };
