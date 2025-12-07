@@ -5,16 +5,17 @@ import React, { useEffect, useState } from 'react';
 // =======================================================================
 // SUBSTITUTION DES IMPORTS NON RÉSOLUS (À RETIRER EN PRODUCTION)
 // =======================================================================
+// Importations réelles (à décommenter en production)
 // import { useAuth } from '@/contexts/AuthContext'; 
 // import { useRouter } from 'next/navigation'; 
 // import { NotificationProvider } from '@/contexts/NotificationContext'; 
-// import Sidebar from '@/components/dashboard/Sidebar'; 
-// import Header from '@/components/dashboard/Header'; 
+//import Sidebar from '@/components/dashboard/Sidebar'; 
+//import Header from '@/components/dashboard/Header'; 
 
 // Mocks nécessaires à la compilation (à supprimer en production)
 const useRouter = () => ({ push: (path) => console.log('Navigation simulée vers:', path) });
 const useAuth = () => {
-    // Simule un utilisateur Admin (pour tester l'accès admin)
+    // Le mock doit retourner un objet complet et défini
     const user = { name: 'Admin User', role: 'admin' };
     return { 
         isAuthenticated: true, 
@@ -37,12 +38,13 @@ const Header = ({ setIsMobileMenuOpen }) => (
 );
 // =======================================================================
 
-// Icônes Lucide (utilisées pour la compilation)
 import { Loader } from 'lucide-react'; 
 
-// Composant Layout du Dashboard
+/**
+ * Composant Layout du Dashboard
+ */
 export default function DashboardLayout({ children }) {
-  // CORRECTION DU DESTRUCTURING : Inclus maintenant 'user' qui est utilisé dans l'useEffect
+  // Déstructuration du hook useAuth (les mocks garantissent que useAuth() retourne un objet)
   const { isAuthenticated, loading, user, checkAuth } = useAuth(); 
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
@@ -57,12 +59,10 @@ export default function DashboardLayout({ children }) {
       return;
     }
     
-    // 3. ** LOGIQUE CLÉ DE REDIRECTION **
-    // Si l'utilisateur est Admin/Teacher et qu'il est dans le dashboard standard (/dashboard)
-    // On le redirige vers le panel /admin
+    // 3. LOGIQUE CLÉ DE REDIRECTION DES ADMINS/PROFESSEURS vers le panneau /admin
     if (user?.role === 'admin' || user?.role === 'teacher') {
         const path = window.location.pathname;
-        // Vérifie si le chemin actuel n'est PAS dans le panneau d'administration
+        // Si l'utilisateur est admin/teacher mais pas sur une route /admin, rediriger.
         if (!path.startsWith('/admin')) {
             router.push('/admin');
         }
@@ -83,7 +83,7 @@ export default function DashboardLayout({ children }) {
   // Affichage du Layout si l'utilisateur est authentifié
   if (isAuthenticated) {
       return (
-        // Encapsuler dans NotificationProvider pour rendre le contexte accessible
+        // Encapsuler dans NotificationProvider
         <NotificationProvider> 
           <div className="flex min-h-screen bg-gray-50 relative" dir="rtl"> 
             
@@ -93,7 +93,7 @@ export default function DashboardLayout({ children }) {
               setIsMobileMenuOpen={setIsMobileMenuOpen} 
             /> 
 
-            {/* Overlay mobile quand le menu est ouvert (visible uniquement sur les petits écrans) */}
+            {/* Overlay mobile quand le menu est ouvert */}
             {isMobileMenuOpen && (
               <div 
                 className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden" 
@@ -102,7 +102,6 @@ export default function DashboardLayout({ children }) {
             )}
 
             {/* 2. Conteneur Principal */}
-            {/* md:mr-64 : Marge à droite pour laisser l'espace à la sidebar FIXE sur desktop */}
             <div className="flex flex-col flex-1 w-full md:mr-64 z-10"> 
               
               {/* Header */}
@@ -119,6 +118,6 @@ export default function DashboardLayout({ children }) {
       );
   }
   
-  // Si l'utilisateur n'est pas authentifié et le chargement est terminé, retourne null
+  // Retourne null en attendant la redirection vers /login
   return null;
 }
