@@ -9,7 +9,7 @@ const { logActivity } = require('./activityController');
 // @desc    Obtenir tous les résumés (pour la page /dashboard/summaries)
 // @route   GET /api/summaries
 // @access  Private
-exports.getAllSummaries = async (req, res) => {
+const getAllSummaries = async (req, res) => { // CORRECTION: Utilisation de 'const'
     try {
         const summaries = await Summary.find({})
                                         .populate('teacher', 'name email')
@@ -24,7 +24,7 @@ exports.getAllSummaries = async (req, res) => {
 // @desc    Créer un nouveau résumé
 // @route   POST /api/summaries
 // @access  Private (Teacher/Admin)
-exports.createSummary = async (req, res) => {
+const createSummary = async (req, res) => { // CORRECTION: Utilisation de 'const'
     // L'ID du professeur est disponible via req.user après le middleware protect
     const teacherId = req.user._id; 
     
@@ -70,7 +70,7 @@ exports.createSummary = async (req, res) => {
 // @desc    Générer un lien de téléchargement pour un résumé (ACTION ÉTUDIANT)
 // @route   GET /api/summaries/:id/download
 // @access  Private
-exports.downloadSummary = async (req, res) => {
+const downloadSummary = async (req, res) => { // CORRECTION: Utilisation de 'const'
     const summaryId = req.params.id;
     const userId = req.user._id;
     const userName = req.user.name;
@@ -112,7 +112,7 @@ exports.downloadSummary = async (req, res) => {
 // @desc    Mettre à jour un résumé
 // @route   PUT /api/summaries/:id
 // @access  Private (Teacher/Admin)
-exports.updateSummary = async (req, res) => {
+const updateSummary = async (req, res) => { // CORRECTION: Utilisation de 'const'
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({ message: 'ID de résumé invalide' });
     }
@@ -144,7 +144,7 @@ exports.updateSummary = async (req, res) => {
 // @desc    Supprimer un résumé
 // @route   DELETE /api/summaries/:id
 // @access  Private (Teacher/Admin)
-exports.deleteSummary = async (req, res) => {
+const deleteSummary = async (req, res) => { // CORRECTION: Utilisation de 'const'
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({ message: 'ID de résumé invalide' });
     }

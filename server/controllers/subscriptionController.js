@@ -3,13 +3,12 @@
 const Subscription = require('../models/Subscription');
 const Token = require('../models/Token'); // Modèle pour les tokens d'activation
 const User = require('../models/User'); // Pour mettre à jour l'utilisateur après activation
-// Importation de la fonction logActivity
 const { logActivity } = require('./activityController'); 
 
 // @desc    Obtenir l'abonnement actif de l'utilisateur
 // @route   GET /api/subscriptions/mine
 // @access  Private (Étudiant)
-exports.getMySubscription = async (req, res) => {
+const getMySubscription = async (req, res) => { // CORRECTION: Utilisation de 'const'
     try {
         const subscription = await Subscription.findOne({ 
             user: req.user._id,
@@ -29,7 +28,7 @@ exports.getMySubscription = async (req, res) => {
 // @desc    Créer un nouvel abonnement (Placeholder pour un checkout standard)
 // @route   POST /api/subscriptions/checkout
 // @access  Private (Étudiant)
-exports.createSubscription = async (req, res) => {
+const createSubscription = async (req, res) => { // CORRECTION: Utilisation de 'const'
     // Cette fonction sert de placeholder pour un mode d'achat autre que le token.
     const { planName, endDate } = req.body;
     
@@ -68,7 +67,7 @@ exports.createSubscription = async (req, res) => {
 // @desc    Valider et consommer un token d'activation (Implémentation de la logique Token)
 // @route   POST /api/subscriptions/validateToken
 // @access  Private (accessible après login)
-exports.validateToken = async (req, res) => {
+const validateToken = async (req, res) => { // CORRECTION: Utilisation de 'const'
     const { soldToken, deviceId } = req.body;
     
     if (!soldToken || !deviceId) {
@@ -144,4 +143,10 @@ exports.validateToken = async (req, res) => {
         console.error("Token Validation Fatal Error:", error);
         res.status(500).json({ status: "INTERNAL_ERROR", error: "Erreur interne du serveur lors de l'activation. Vérifiez la console pour les détails." }); 
     }
+};
+
+module.exports = {
+    getMySubscription,
+    createSubscription,
+    validateToken,
 };

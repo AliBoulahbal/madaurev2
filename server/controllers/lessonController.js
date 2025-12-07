@@ -6,7 +6,7 @@ const { logActivity } = require('./activityController');
 // @desc    Créer une nouvelle leçon
 // @route   POST /api/lessons
 // @access  Private (Teacher/Admin)
-exports.createLesson = async (req, res) => {
+const createLesson = async (req, res) => { // Correction: Utilisation de 'const'
     // Le middleware 'protect' a déjà mis l'objet utilisateur dans req.user
     const teacherId = req.user._id; 
     
@@ -75,7 +75,7 @@ exports.createLesson = async (req, res) => {
 // @desc    Obtenir toutes les leçons (pour la page dashboard/lessons)
 // @route   GET /api/lessons
 // @access  Private
-exports.getAllLessons = async (req, res) => {
+const getAllLessons = async (req, res) => { // Correction: Utilisation de 'const'
     try {
         // Dans une application réelle, on filtrerait par la branche de l'utilisateur (req.user.branch)
         const lessons = await Lesson.find({ status: { $ne: 'cancelled' } })
@@ -90,7 +90,7 @@ exports.getAllLessons = async (req, res) => {
 // @desc    Obtenir une seule leçon par ID
 // @route   GET /api/lessons/:id
 // @access  Private
-exports.getLessonById = async (req, res) => {
+const getLessonById = async (req, res) => { // Correction: Utilisation de 'const'
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({ message: 'ID de leçon invalide' });
     }
@@ -108,7 +108,7 @@ exports.getLessonById = async (req, res) => {
 // @desc    Marquer une leçon comme complétée par l'utilisateur (ACTION ÉTUDIANT)
 // @route   POST /api/lessons/:id/complete
 // @access  Private
-exports.markLessonAsComplete = async (req, res) => {
+const markLessonAsComplete = async (req, res) => { // Correction: Utilisation de 'const'
     const lessonId = req.params.id;
     const userId = req.user._id;
     const userName = req.user.name;
@@ -145,7 +145,7 @@ exports.markLessonAsComplete = async (req, res) => {
 // @desc    Mettre à jour une leçon
 // @route   PUT /api/lessons/:id
 // @access  Private (Teacher/Admin)
-exports.updateLesson = async (req, res) => {
+const updateLesson = async (req, res) => { // Correction: Utilisation de 'const'
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({ message: 'ID de leçon invalide' });
     }
@@ -175,7 +175,7 @@ exports.updateLesson = async (req, res) => {
 // @desc    Supprimer une leçon
 // @route   DELETE /api/lessons/:id
 // @access  Private (Teacher/Admin)
-exports.deleteLesson = async (req, res) => {
+const deleteLesson = async (req, res) => { // Correction: Utilisation de 'const'
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({ message: 'ID de leçon invalide' });
     }

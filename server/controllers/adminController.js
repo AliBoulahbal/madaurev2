@@ -4,11 +4,12 @@ const User = require('../models/User');
 const Lesson = require('../models/Lesson');
 const Summary = require('../models/Summary');
 const Subscription = require('../models/Subscription');
+// Importation optionnelle de logActivity
 
 // @desc    Obtenir les statistiques globales pour le Dashboard Admin/Teacher
 // @route   GET /api/admin/stats
 // @access  Private (Admin/Teacher)
-exports.getAdminStats = async (req, res) => {
+const getAdminStats = async (req, res) => { // Correction de la syntaxe d'exportation
     try {
         // 1. Statistiques des Utilisateurs
         const totalUsers = await User.countDocuments({});
@@ -48,4 +49,8 @@ exports.getAdminStats = async (req, res) => {
         console.error("Admin Stats Fetch Error (from adminController):", error);
         res.status(500).json({ message: "Erreur serveur lors de la récupération des statistiques administratives." });
     }
+};
+
+module.exports = {
+    getAdminStats,
 };

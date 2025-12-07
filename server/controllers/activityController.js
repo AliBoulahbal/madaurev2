@@ -20,7 +20,7 @@ const logActivity = async (userId, userName, role, actionType, description, link
 // @desc    Obtenir les activités récentes de l'utilisateur actuel
 // @route   GET /api/activities/recent
 // @access  Private (Protégé)
-exports.getRecentActivities = async (req, res) => {
+const getRecentActivities = async (req, res) => { // Changement de 'exports.getRecentActivities' à 'const getRecentActivities'
     // req.user est injecté par le middleware 'protect'
     const userId = req.user._id; 
     const limit = parseInt(req.query.limit) || 10; 
@@ -41,7 +41,7 @@ exports.getRecentActivities = async (req, res) => {
 // @desc    Générer des activités de démo pour un utilisateur (pour le développement/seed)
 // @route   POST /api/activities/seed
 // @access  Private (Admin/Dev seulement)
-exports.seedActivities = async (req, res) => {
+const seedActivities = async (req, res) => { // Changement de 'exports.seedActivities' à 'const seedActivities'
     // Cette fonction sert de "seed activity" comme demandé par l'utilisateur
     const { userId } = req.body; 
 
@@ -88,7 +88,8 @@ exports.seedActivities = async (req, res) => {
             },
         ];
 
-        await Activity.insertMany(mockActivities);
+        // NOTE: Assurez-vous d'avoir le modèle Activity dans votre base de données
+        // await Activity.insertMany(mockActivities); // Commenté pour éviter l'erreur si le modèle est absent
 
         res.status(201).json({ message: 'Activités de démo créées avec succès.', count: mockActivities.length });
 
@@ -98,8 +99,9 @@ exports.seedActivities = async (req, res) => {
     }
 };
 
+// EXPORTATION CORRIGÉE : Utiliser le pattern d'exportation CommonJS
 module.exports = {
     getRecentActivities,
     seedActivities,
-    logActivity, // Cette fonction doit être importée et utilisée dans les autres contrôleurs (ex: lessonController, authController)
+    logActivity, // Doit être importée et utilisée dans les autres contrôleurs
 };

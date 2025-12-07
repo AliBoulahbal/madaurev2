@@ -10,7 +10,7 @@ const Communication = require('../models/Communication'); // Pour le suivi des i
 // @desc    Obtenir les statistiques clés du tableau de bord
 // @route   GET /api/dashboard/stats
 // @access  Private
-exports.getDashboardStats = async (req, res) => {
+const getDashboardStats = async (req, res) => { // Correction de la syntaxe d'exportation
     try {
         const userId = req.user._id;
 
@@ -34,7 +34,6 @@ exports.getDashboardStats = async (req, res) => {
         // 4. Nombre d'interactions (messages envoyés par l'utilisateur aux professeurs)
         const teacherInteractions = await Communication.countDocuments({
             sender: userId,
-            // Optionnel: filtrer le recipient pour s'assurer que c'est bien un professeur si nécessaire
         });
 
         // 5. Notifications non lues (pour la pastille dans la Sidebar)
@@ -56,4 +55,8 @@ exports.getDashboardStats = async (req, res) => {
         console.error("Dashboard Stats Error:", error);
         res.status(500).json({ message: "Erreur lors de l'obtention des statistiques du tableau de bord." });
     }
+};
+
+module.exports = {
+    getDashboardStats,
 };

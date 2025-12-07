@@ -1,8 +1,8 @@
 // server/controllers/faqController.js
-
 // NOTE: En production, vous auriez un modèle 'FAQ' pour stocker les Q/R.
+// Importation optionnelle de logActivity
 
-// Données FAQ Simples
+// Données FAQ Simples (Simulées)
 const simulatedFaqData = [
     { id: 1, question: 'كيف يمكنني تفعيل رمز الإشتراك؟', answer: 'اذهب إلى صفحة "الإشتراك" وأدخل الرمز المكون من 8 أرقام.' },
     { id: 2, question: 'ما هي مدة صلاحية الدروس المباشرة؟', answer: 'تصبح متاحة للمشاهدة لمدة 30 يوماً بعد البث.' },
@@ -13,7 +13,7 @@ const simulatedFaqData = [
 // @desc    Obtenir toutes les questions fréquentes
 // @route   GET /api/support/faq
 // @access  Private
-exports.getAllFaq = async (req, res) => {
+const getAllFaq = async (req, res) => { // Correction de la syntaxe d'exportation
     // Simule la récupération des données
     res.status(200).json(simulatedFaqData);
 };
@@ -21,7 +21,7 @@ exports.getAllFaq = async (req, res) => {
 // @desc    Créer une nouvelle question fréquente
 // @route   POST /api/support/faq
 // @access  Private (Admin)
-exports.createFaq = async (req, res) => {
+const createFaq = async (req, res) => { // Correction de la syntaxe d'exportation
     const { question, answer } = req.body;
 
     if (!question || !answer) {
@@ -36,8 +36,12 @@ exports.createFaq = async (req, res) => {
         creator: req.user._id,
     };
     
-    // Pour les tests, on loge la nouvelle FAQ
     console.log("[FAQ] Nouvelle question créée:", newFaqItem); 
 
     res.status(201).json(newFaqItem);
+};
+
+module.exports = {
+    getAllFaq,
+    createFaq,
 };

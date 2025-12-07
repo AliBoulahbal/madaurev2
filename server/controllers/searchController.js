@@ -2,11 +2,12 @@
 const Lesson = require('../models/Lesson');
 const Summary = require('../models/Summary');
 const User = require('../models/User'); 
+// Importation optionnelle de logActivity
 
 // @desc    Effectuer une recherche globale rapide (Leçons, Résumés, Professeurs)
 // @route   GET /api/search?q=:query
 // @access  Private
-exports.globalSearch = async (req, res) => {
+const globalSearch = async (req, res) => { // CORRECTION: Utilisation de 'const'
     const { q } = req.query;
     
     if (!q) {
@@ -23,7 +24,6 @@ exports.globalSearch = async (req, res) => {
             $or: [{ title: regex }, { description: regex }],
             status: { $ne: 'cancelled' }
         })
-        // S'assurer que les champs _id, subject sont sélectionnés
         .select('title subject teacher isLive _id') 
         .populate('teacher', 'name')
         .limit(5);
@@ -58,7 +58,6 @@ exports.globalSearch = async (req, res) => {
                 title: item.title, 
                 subject: item.subject, 
                 id: item._id, 
-                // Note: La route vers les résumés n'est pas encore définie, on utilise un ID comme placeholder
                 link: `/dashboard/summaries/${item._id}` 
             })),
             ...teacherResults.map(item => ({ 
@@ -73,8 +72,11 @@ exports.globalSearch = async (req, res) => {
         res.status(200).json({ results });
 
     } catch (error) {
-        // En cas d'erreur Mongoose ou autre
         console.error("Global Search Fatal Error:", error);
         res.status(500).json({ message: "Erreur serveur lors de la recherche globale. Veuillez vérifier les modèles/index." });
     }
+};
+
+module.exports = {
+    globalSearch,
 };
