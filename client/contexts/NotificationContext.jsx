@@ -1,58 +1,25 @@
+// client/contexts/NotificationContext.jsx - VERSION PRODUCTION
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-// =======================================================================
-// Remplacement des importations non résolues par des MOCKS auto-contenus
-// NOTE : En production, vous devriez décommenter les lignes ci-dessous et supprimer les MOCKS.
-// import { api } from '@/lib/api'; 
-// import { useAuth } from '@/contexts/AuthContext'; 
-// =======================================================================
-
-// =======================================================================
-// MOCKS POUR LA COMPILATION (À SUPPRIMER EN PRODUCTION)
-// =======================================================================
-// Simuler l'instance API pour la récupération des notifications
-const api = {
-    get: (url) => new Promise(resolve => {
-        setTimeout(() => {
-            const mockNotifications = [
-                { _id: 1, message: 'بدأ درس "المتجهات" الآن. انضم بسرعة!', isRead: false, type: 'lesson', link: '/dashboard/lessons/123', createdAt: new Date(Date.now() - 5 * 60000) },
-                { _id: 2, message: 'تم تحديث سياسة الخصوصية. يرجأ المراجعة.', isRead: false, type: 'system', link: '/info/privacy', createdAt: new Date(Date.now() - 24 * 60 * 60000) },
-                { _id: 3, message: 'تمت إضافة 3 ملخصات جديدة لمادة التاريخ والجغرافيا.', isRead: true, type: 'subscription', link: '/dashboard/summaries', createdAt: new Date(Date.now() - 3 * 24 * 60 * 60000) },
-            ];
-            const unreadCount = mockNotifications.filter(n => !n.isRead).length;
-
-            resolve({ data: { notifications: mockNotifications, unreadCount } });
-        }, 800);
-    }),
-    put: (url) => new Promise(resolve => {
-        setTimeout(() => {
-            resolve({ status: 200, data: { message: 'Marked as read' } });
-        }, 100);
-    })
-};
-
-// Simuler l'authentification
-const useAuth = () => {
-    // Utiliser useState pour simuler le comportement dynamique d'un contexte réel
-    const [user] = useState({ _id: 'user-123', name: 'Mock User' }); 
-    return {
-        user,
-        isAuthenticated: true,
-        updateUser: () => console.log('Mock updateUser called'), 
-    };
-};
-// =======================================================================
-
+import { api } from '@/lib/api'; 
+import { useAuth } from '@/contexts/AuthContext'; 
 
 const NotificationContext = createContext();
 
-export const useNotifications = () => useContext(NotificationContext);
+export const useNotifications = () => {
+  const context = useContext(NotificationContext);
+  
+  if (!context) {
+    throw new Error('useNotifications must be used within NotificationProvider');
+  }
+  
+  return context;
+};
 
 const FETCH_INTERVAL_MS = 30000; // Intervalle de 30 secondes pour rafraîchir
 
 export const NotificationProvider = ({ children }) => {
-    // Utilisation des hooks et de l'utilisateur réel
     const { user, isAuthenticated } = useAuth(); 
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -60,28 +27,24 @@ export const NotificationProvider = ({ children }) => {
 
     // Fonction pour récupérer les notifications depuis l'API
     const fetchNotifications = useCallback(async () => {
-        // Vérifie si l'utilisateur est authentifié et disponible avant de faire l'appel API
+        // Vérifie si l'utilisateur est authentifié et disponible
         if (!isAuthenticated || !user || !user._id) { 
             setLoading(false);
             return;
         }
 
         try {
-            // APPEL API RÉEL
-            const response = await api.get('/api/notifications'); 
-            // Votre contrôleur renvoie un tableau de notifications
-            const fetchedNotifications = response.data.notifications || response.data;
+            const response = await api.get('/notifications'); 
+            const fetchedNotifications = response.data.notifications || response.data || [];
             
-            // Calculer le nombre non lu côté client
+            // Calculer le nombre non lu
             const count = fetchedNotifications.filter(n => !n.isRead).length;
 
             setNotifications(fetchedNotifications);
             setUnreadCount(count);
         } catch (error) {
             console.error("Échec de la récupération des notifications:", error);
-            // Réinitialiser en cas d'erreur de connexion
-            setNotifications([]);
-            setUnreadCount(0);
+            // En cas d'erreur, garder les notifications existantes
         } finally {
             setLoading(false);
         }
@@ -89,16 +52,15 @@ export const NotificationProvider = ({ children }) => {
 
     // Effet pour initialiser et rafraîchir périodiquement
     useEffect(() => {
-        fetchNotifications(); // Récupère immédiatement au montage
+        fetchNotifications();
 
-        // Rafraîchissement périodique (simule le temps réel)
+        // Rafraîchissement périodique
         const intervalId = setInterval(fetchNotifications, FETCH_INTERVAL_MS);
 
-        // Nettoyage de l'intervalle
         return () => clearInterval(intervalId);
     }, [fetchNotifications]);
 
-    // Fonction pour marquer une notification comme lue (côté client et serveur)
+    // Fonction pour marquer une notification comme lue
     const markAsRead = async (notificationId) => {
         // Optimistic update côté client
         setNotifications(prevNotifications => 
@@ -109,14 +71,20 @@ export const NotificationProvider = ({ children }) => {
         setUnreadCount(prevCount => Math.max(0, prevCount - 1));
         
         try {
-            // APPEL API RÉEL : PUT /api/notifications/:id/read
-            await api.put(`/api/notifications/${notificationId}/read`);
+            await api.put(`/notifications/${notificationId}/read`);
         } catch (error) {
-            console.error("Échec de la mise à jour 'markAsRead' sur le serveur:", error);
+            console.error("Échec de la mise à jour 'markAsRead':", error);
+            // Revert en cas d'erreur
+            setNotifications(prevNotifications => 
+                prevNotifications.map(n => 
+                    n._id === notificationId ? { ...n, isRead: false } : n
+                )
+            );
+            setUnreadCount(prevCount => prevCount + 1);
         }
     };
     
-    // Fonction à utiliser pour envoyer une notification (utilisée par la page d'abonnement après une mise à jour)
+    // Fonction pour ajouter une nouvelle notification
     const pushNotification = (newNotification) => {
         setNotifications(prevNotifications => [newNotification, ...prevNotifications]);
         if (!newNotification.isRead) {
@@ -124,14 +92,35 @@ export const NotificationProvider = ({ children }) => {
         }
     };
 
+    // Fonction pour marquer toutes comme lues
+    const markAllAsRead = async () => {
+        const unreadIds = notifications.filter(n => !n.isRead).map(n => n._id);
+        
+        if (unreadIds.length === 0) return;
+        
+        // Optimistic update
+        setNotifications(prevNotifications => 
+            prevNotifications.map(n => ({ ...n, isRead: true }))
+        );
+        setUnreadCount(0);
+        
+        try {
+            await api.put('/notifications/mark-all-read');
+        } catch (error) {
+            console.error("Échec de marquer toutes comme lues:", error);
+            // Revert en cas d'erreur
+            fetchNotifications();
+        }
+    };
 
     const value = {
         notifications,
         unreadCount,
         loading,
         markAsRead,
+        markAllAsRead,
         pushNotification,
-        fetchNotifications, 
+        fetchNotifications,
     };
 
     return (
@@ -141,5 +130,4 @@ export const NotificationProvider = ({ children }) => {
     );
 };
 
-// Exportation par défaut pour la robustesse des importations dans Next.js
 export default NotificationProvider;

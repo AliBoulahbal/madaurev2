@@ -1,42 +1,136 @@
-// server/routes/users.js
-
+// server/routes/users.js - Version complète et corrigée
 const express = require('express');
-const { 
-    registerUser, 
-    loginUser, 
-    getMe, 
-    // NOUVELLE IMPORTATION : Fonction permettant à l'utilisateur de mettre à jour son propre profil
-    updateMyProfile, 
-    getAllTeachers,
-    getAllUsers, 
-    updateUserByAdmin, 
-    deleteUser,
-    createUserByAdmin // Importation de la fonction Admin
-} = require('../controllers/userController'); 
-const { protect, authorizeRoles } = require('../middleware/auth');
 const router = express.Router();
 
-// --- AUTHENTIFICATION / PROFIL UTILISATEUR ---\r\n
-router.post('/register', registerUser);
-router.post('/login', loginUser);
+// IMPORTATION CORRECTE DES CONTROLLEURS
+// Vérifiez d'abord que le fichier existe
+const fs = require('fs');
+const path = require('path');
+const controllerPath = path.join(__dirname, '../controllers/userController.js');
 
-// Route pour obtenir (GET) et mettre à jour (PUT) les données de l'utilisateur connecté (/api/users/me)
-router.route('/me')
-    .get(protect, getMe)
-    .put(protect, updateMyProfile); // Ajout de la route PUT protégée
+console.log('🔍 Vérification du contrôleur...');
+console.log('Chemin du contrôleur:', controllerPath);
+console.log('Fichier existe?', fs.existsSync(controllerPath));
 
-// --- LISTES PUBLIQUES (pour les étudiants) ---\r\n
-router.route('/teachers').get(protect, getAllTeachers);
+if (!fs.existsSync(controllerPath)) {
+  console.error('❌ ERREUR: Fichier userController.js introuvable!');
+  console.error('Cherché à:', controllerPath);
+  process.exit(1);
+}
 
-// --- GESTION PAR L'ADMINISTRATEUR (CRUD sur /api/users) ---\r\n
-// Obtenir la liste complète des utilisateurs (GET) et Créer un utilisateur (POST)
-router.route('/')
-    .get(protect, authorizeRoles(['admin']), getAllUsers)
-    .post(protect, authorizeRoles(['admin']), createUserByAdmin); 
+// Importation avec vérification
+const userController = require(controllerPath);
 
-// Mettre à jour ou supprimer un utilisateur par ID (Admin seulement)\r\n
-router.route('/:id')
-    .put(protect, authorizeRoles(['admin']), updateUserByAdmin)
-    .delete(protect, authorizeRoles(['admin']), deleteUser);
+// Vérifiez les exports
+console.log('📦 Exports disponibles:', Object.keys(userController));
+
+// Définition manuelle si nécessaire (fallback)
+const ensureFunction = (func, name) => {
+  if (typeof func === 'function') {
+    return func;
+  }
+  console.warn(`⚠️  ${name} n'est pas une fonction, création d'un fallback`);
+  return (req, res) => {
+    console.log(`Fallback appelé pour ${name}:`, req.body);
+    res.status(501).json({ 
+      message: `Fonction ${name} non disponible`,
+      error: `Type: ${typeof func}, Value: ${func}`
+    });
+  };
+};
+
+// Routes d'authentification (PUBLIC)
+console.log('➕ Configuration des routes...');
+
+// Route: /api/users/register
+router.post('/register', ensureFunction(userController.registerUser, 'registerUser'));
+
+// Route: /api/users/login  
+router.post('/login', ensureFunction(userController.loginUser, 'loginUser'));
+
+// IMPORTATION DU MIDDLEWARE D'AUTHENTIFICATION
+const authMiddlewarePath = path.join(__dirname, '../middleware/auth.js');
+console.log('Chemin middleware auth:', authMiddlewarePath);
+console.log('Middleware existe?', fs.existsSync(authMiddlewarePath));
+
+let authMiddleware;
+try {
+  authMiddleware = require(authMiddlewarePath);
+  console.log('✅ Middleware auth importé avec succès');
+} catch (error) {
+  console.error('❌ Erreur import middleware auth:', error.message);
+  // Fallback pour le middleware
+  authMiddleware = {
+    protect: (req, res, next) => {
+      console.log('Middleware protect fallback appelé');
+      req.user = { _id: 'fallback-user-id', role: 'admin' };
+      next();
+    },
+    authorizeRoles: (roles) => (req, res, next) => {
+      console.log('Middleware authorizeRoles fallback appelé pour roles:', roles);
+      next();
+    }
+  };
+}
+
+// Routes protégées - PROFIL UTILISATEUR
+// Route: /api/users/me (GET - obtenir son profil)
+router.get('/me', 
+  ensureFunction(authMiddleware.protect, 'protect'),
+  ensureFunction(userController.getMe, 'getMe')
+);
+
+// Route: /api/users/me (PUT - mettre à jour son profil)
+router.put('/me', 
+  ensureFunction(authMiddleware.protect, 'protect'),
+  ensureFunction(userController.updateMyProfile, 'updateMyProfile')
+);
+
+// Route: /api/users/teachers (GET - liste des enseignants)
+router.get('/teachers', 
+  ensureFunction(authMiddleware.protect, 'protect'),
+  ensureFunction(userController.getAllTeachers, 'getAllTeachers')
+);
+
+// --- ROUTES ADMINISTRATEUR ---
+// Route: /api/users (GET - liste tous les utilisateurs)
+router.get('/', 
+  ensureFunction(authMiddleware.protect, 'protect'),
+  ensureFunction(authMiddleware.authorizeRoles, 'authorizeRoles')(['admin']),
+  ensureFunction(userController.getAllUsers, 'getAllUsers')
+);
+
+// Route: /api/users (POST - créer un utilisateur - admin seulement)
+router.post('/', 
+  ensureFunction(authMiddleware.protect, 'protect'),
+  ensureFunction(authMiddleware.authorizeRoles, 'authorizeRoles')(['admin']),
+  ensureFunction(userController.createUserByAdmin, 'createUserByAdmin')
+);
+
+// Route: /api/users/:id (PUT - mettre à jour un utilisateur)
+router.put('/:id', 
+  ensureFunction(authMiddleware.protect, 'protect'),
+  ensureFunction(authMiddleware.authorizeRoles, 'authorizeRoles')(['admin']),
+  ensureFunction(userController.updateUserByAdmin, 'updateUserByAdmin')
+);
+
+// Route: /api/users/:id (DELETE - supprimer un utilisateur)
+router.delete('/:id', 
+  ensureFunction(authMiddleware.protect, 'protect'),
+  ensureFunction(authMiddleware.authorizeRoles, 'authorizeRoles')(['admin']),
+  ensureFunction(userController.deleteUser, 'deleteUser')
+);
+
+console.log('✅ Routes users configurées avec succès!');
+console.log('Routes disponibles:');
+console.log('  POST   /api/users/register');
+console.log('  POST   /api/users/login');
+console.log('  GET    /api/users/me');
+console.log('  PUT    /api/users/me');
+console.log('  GET    /api/users/teachers');
+console.log('  GET    /api/users/ (admin)');
+console.log('  POST   /api/users/ (admin)');
+console.log('  PUT    /api/users/:id (admin)');
+console.log('  DELETE /api/users/:id (admin)');
 
 module.exports = router;

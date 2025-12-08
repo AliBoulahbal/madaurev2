@@ -2,24 +2,28 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+// =======================================================================
+// CHOISIR UNE SEULE OPTION
+// OPTION 1: IMPORTS RÉELS (DÉCOMMENTEZ SI DISPONIBLE)
+// =======================================================================
+import { useAuth } from '@/contexts/AuthContext'; 
+import { useNotifications } from '@/contexts/NotificationContext';
+import Input from '@/components/ui/Input'; 
+import { api } from '@/lib/api'; 
+import Link from 'next/link';
 
 // =======================================================================
-// SUBSTITUTION DES IMPORTS NON RÉSOLUS (À RETIRER EN PRODUCTION)
-// En production, décommenter les imports réels :
-// import { useAuth } from '@/contexts/AuthContext'; 
-// import { useNotifications } from '@/contexts/NotificationContext';
-// import Input from '@/components/ui/Input'; 
-// import { api } from '@/lib/api'; 
-// import Link from 'next/link';
-
-// Mocks nécessaires à la compilation (à supprimer en production)
-const useAuth = () => ({ 
-    user: { name: 'أحمد علي', role: 'student' }, 
+// OPTION 2: MOCKS (À UTILISER SI LES IMPORTS RÉELS CAUSENT DES ERREURS)
+// COMMENTEZ LES IMPORTS CI-DESSUS ET DÉCOMMENTEZ CE BLOC
+// =======================================================================
+/*
+// Mocks
+const mockUseAuth = () => ({ 
+    user: { name: 'أحمد علي', role: 'admin' }, 
     isAuthenticated: true,
-    // La déconnexion doit être implémentée dans votre AuthContext réel
-    logout: () => console.log('Logout simulated successfully from Header. If this is not working, check your AuthContext implementation.'),
+    logout: () => console.log('Logout simulated'),
 });
-const useNotifications = () => ({ 
+const mockUseNotifications = () => ({ 
     notifications: [
         { _id: 1, message: 'بدأ درس "المتجهات" الآن.', isRead: false, type: 'lesson', link: '/lessons/1', createdAt: new Date(Date.now() - 5 * 60000) },
         { _id: 2, message: 'تم تحديث ملفك الشخصي.', isRead: false, type: 'system', link: '/subscription', createdAt: new Date(Date.now() - 10 * 60000) },
@@ -29,8 +33,7 @@ const useNotifications = () => ({
     loading: false,
     markAsRead: (id) => console.log(`Notification ${id} marked as read`),
 });
-
-const Input = ({ value, onChange, placeholder, className = '', ...props }) => (
+const MockInput = ({ value, onChange, placeholder, className = '', ...props }) => (
     <input 
         value={value} 
         onChange={onChange} 
@@ -40,7 +43,7 @@ const Input = ({ value, onChange, placeholder, className = '', ...props }) => (
         {...props} 
     />
 );
-const api = {
+const mockApi = {
     get: (url) => new Promise(resolve => {
         setTimeout(() => {
             const mockResults = [
@@ -51,17 +54,22 @@ const api = {
         }, 300);
     }),
 };
-// NOTE: Le mock Link bloque la navigation réelle (e.preventDefault)
-const Link = ({ href, children, ...props }) => <a href={href} onClick={(e) => { e.preventDefault(); console.log('Navigation simulated to:', href); }} {...props}>{children}</a>;
+const MockLink = ({ href, children, ...props }) => <a href={href} onClick={(e) => { e.preventDefault(); console.log('Navigation simulated to:', href); }} {...props}>{children}</a>;
+
+// Utiliser les mocks
+const useAuth = mockUseAuth;
+const useNotifications = mockUseNotifications;
+const Input = MockInput;
+const api = mockApi;
+const Link = MockLink;
+*/
 // =======================================================================
 
-
-// Icônes Lucide (utilisées pour la compilation)
+// Icônes Lucide
 import { 
     Search, 
     Bell, 
     Menu, 
-    X, 
     Video, 
     BookOpen, 
     Users, 
@@ -72,7 +80,23 @@ import {
     Rss,
 } from 'lucide-react'; 
 
-// Composant Helper pour les icônes de notification
+// Fonction utilitaire
+const formatTimeAgo = (date) => {
+    if (!date) return "";
+    const now = new Date();
+    const past = new Date(date);
+    const diffMs = now - past;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
+    if (diffHours < 24) return `منذ ${diffHours} ساعة`;
+    if (diffDays < 7) return `منذ ${diffDays} يوم`;
+    return past.toLocaleDateString('ar-EG');
+};
+
+// Composant NotificationIcon
 const NotificationIcon = ({ type }) => {
     const defaultClasses = "w-5 h-5 flex-shrink-0";
     switch (type) {
@@ -84,20 +108,12 @@ const NotificationIcon = ({ type }) => {
     }
 };
 
-const formatTimeAgo = (date) => {
-    // NOTE: Simule la fonction
-    return "منذ بضع دقائق";
-};
-
-// ===========================================
-// COMPOSANT NotificationDropdown (NOUVEAU)
-// ===========================================
+// Composant NotificationDropdown
 const NotificationDropdown = ({ setIsMobileMenuOpen }) => {
     const { notifications, unreadCount, loading, markAsRead } = useNotifications();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
     
-    // Fermer le menu lors d'un clic à l'extérieur
     const handleClickOutside = useCallback((event) => {
         if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
             setIsOpen(false);
@@ -109,7 +125,6 @@ const NotificationDropdown = ({ setIsMobileMenuOpen }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [handleClickOutside]);
 
-    // Les 5 notifications les plus récentes (non lues en priorité)
     const sortedNotifications = [...notifications].sort((a, b) => {
         if (!a.isRead && b.isRead) return -1;
         if (a.isRead && !b.isRead) return 1;
@@ -121,7 +136,6 @@ const NotificationDropdown = ({ setIsMobileMenuOpen }) => {
     const handleNotificationClick = (id, link) => {
         markAsRead(id);
         setIsOpen(false);
-        // window.location.href = link; 
     };
 
     return (
@@ -134,7 +148,7 @@ const NotificationDropdown = ({ setIsMobileMenuOpen }) => {
                 <Bell className="w-6 h-6" /> 
                 {unreadCount > 0 && (
                     <span className="absolute top-0 right-0 bg-red-600 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white transform translate-x-1 -translate-y-1">
-                        {unreadCount}
+                        {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}
             </button>
@@ -189,8 +203,6 @@ const NotificationDropdown = ({ setIsMobileMenuOpen }) => {
         </div>
     );
 };
-// ===========================================
-
 
 const Header = ({ setIsMobileMenuOpen }) => { 
   const { user } = useAuth();
@@ -200,7 +212,6 @@ const Header = ({ setIsMobileMenuOpen }) => {
   const searchTimeoutRef = useRef(null);
   const searchDropdownRef = useRef(null);
   
-  // Fonction utilitaire pour la recherche
   const performSearch = useCallback(async (query) => {
     if (query.length < 2) {
       setSearchResults([]);
@@ -211,10 +222,8 @@ const Header = ({ setIsMobileMenuOpen }) => {
     setSearchLoading(true);
     
     try {
-        // APPEL API RÉEL : GET /api/search?q=query
         const response = await api.get(`/api/search?q=${query}`);
         const results = response.data.results || [];
-        
         setSearchResults(results);
     } catch (error) {
         console.error("Erreur de recherche:", error);
@@ -224,7 +233,6 @@ const Header = ({ setIsMobileMenuOpen }) => {
     setSearchLoading(false);
   }, []);
   
-  // Effet pour gérer le debounce de la recherche
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -237,7 +245,6 @@ const Header = ({ setIsMobileMenuOpen }) => {
     return () => clearTimeout(searchTimeoutRef.current);
   }, [searchTerm, performSearch]);
   
-  // Fermer la recherche lors d'un clic à l'extérieur
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (searchDropdownRef.current && !searchDropdownRef.current.contains(event.target)) {
@@ -248,7 +255,6 @@ const Header = ({ setIsMobileMenuOpen }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
   
-  // Composant de carte de résultat de recherche (Utilise Lucide)
   const SearchResultItem = ({ result, onClick }) => {
     let Icon;
     let subjectDetail = result.subject;
@@ -283,14 +289,13 @@ const Header = ({ setIsMobileMenuOpen }) => {
         </Link>
     );
   };
-  
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10" dir="rtl">
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           
-          {/* Section Gauche (Recherche) */}
+          {/* Section Recherche */}
           <div className="relative w-full max-w-md ml-4" ref={searchDropdownRef}>
             <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
@@ -325,13 +330,10 @@ const Header = ({ setIsMobileMenuOpen }) => {
             )}
           </div>
           
-          {/* Section Droite (Profil & Actions) */}
+          {/* Section Actions */}
           <div className="flex items-center gap-4">
-            
-            {/* Notification Dropdown */}
             <NotificationDropdown setIsMobileMenuOpen={setIsMobileMenuOpen} /> 
             
-            {/* Profil court (nom + avatar) */}
             <Link href="/dashboard/subscription" className="flex items-center gap-3 p-1 rounded-full hover:bg-gray-100 transition-colors hidden sm:flex">
                 <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
                     {user?.name?.charAt(0) || 'م'} 
@@ -339,7 +341,6 @@ const Header = ({ setIsMobileMenuOpen }) => {
                 <span className="text-sm font-semibold text-gray-800 hidden lg:block">{user?.name || 'زائر'}</span>
             </Link>
           
-            {/* Bouton pour Mobile (Menu) */}
             <button
               onClick={() => setIsMobileMenuOpen(true)}
               className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors md:hidden"

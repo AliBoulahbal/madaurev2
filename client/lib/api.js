@@ -1,70 +1,71 @@
-// client/lib/api.js
-
+// client/lib/api.js - VERSION CORRIGÉE
 import axios from 'axios';
 
 // 1. Définition de l'URL de Base
-// L'URL est tirée du .env.local (NEXT_PUBLIC_BACKEND_URL)
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000/api';
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001/api';
 
 /**
- * Instance Axios pré-configurée pour interagir avec le Backend MADAURE.
+ * Fonction pour mapper les anciennes routes vers les nouvelles routes
+ */
+const mapEndpoint = (endpoint) => {
+  // Mappage des routes d'authentification
+  if (endpoint === '/auth/login') return '/users/login';
+  if (endpoint === '/auth/register') return '/users/register';
+  // Ajoutez d'autres mappings si nécessaire
+  return endpoint;
+};
+
+/**
+ * Instance Axios pré-configurée
  */
 export const api = axios.create({
   baseURL: BASE_URL,
   headers: {
-    // Le Content-Type est essentiel pour que Express puisse parser le JSON
     'Content-Type': 'application/json',
   },
-  // Permet d'inclure les cookies si nécessaire (bien que nous utilisions JWT dans localStorage)
-  withCredentials: true, 
+  withCredentials: true,
 });
 
-// Stocker le token dans une variable accessible par les intercepteurs (solution plus propre)
+// Stocker le token
 let authToken = null;
 
-/**
- * Fonction publique appelée par AuthContext pour définir le JWT après login/register
- * @param {string | null} token - Le jeton JWT ou null pour déconnexion
- */
 export const setAuthToken = (token) => {
-    authToken = token;
-    
-    // Si le token est null, on efface aussi l'en-tête global
-    if (!token) {
-        delete api.defaults.headers.common['Authorization'];
-    }
+  authToken = token;
+  if (!token) {
+    delete api.defaults.headers.common['Authorization'];
+  }
 };
 
 // ==========================================================
-// 2. Intercepteur de Requête (Ajout du Token)
+// Intercepteur de Requête avec mapping des routes
 // ==========================================================
 api.interceptors.request.use(
   (config) => {
+    // Mapper l'endpoint si nécessaire
+    config.url = mapEndpoint(config.url);
     
-    // ** CORRECTION CLÉ : Utiliser la variable globale authToken **
+    // Ajouter le token d'authentification
     if (authToken) {
       config.headers.Authorization = `Bearer ${authToken}`;
     } else if (typeof window !== 'undefined') {
-        // Fallback: Tentative de récupération depuis localStorage pour les rafraîchissements
-        try {
-            const userData = localStorage.getItem('user');
-            if (userData) {
-                const user = JSON.parse(userData);
-                const token = user?.token;
-                if (token) {
-                    config.headers.Authorization = `Bearer ${token}`;
-                    authToken = token; // Mise à jour de la variable globale pour les requêtes futures
-                }
-            }
-        } catch (e) {
-            console.error("Erreur de lecture/parsing du token dans localStorage:", e);
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          const user = JSON.parse(userData);
+          const token = user?.token;
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+            authToken = token;
+          }
         }
+      } catch (e) {
+        console.error("Erreur de lecture du token:", e);
+      }
     }
     
-    if (!config.headers.Authorization && config.url !== '/auth/login' && config.url !== '/auth/register') {
-        console.warn(`[API] Requête vers ${config.url} sans JWT.`);
-    }
-
+    // Log pour debug
+    console.log(`[API] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+    
     return config;
   },
   (error) => {
@@ -73,26 +74,34 @@ api.interceptors.request.use(
 );
 
 // ==========================================================
-// 3. Intercepteur de Réponse (Gestion des Erreurs Globales)
+// Intercepteur de Réponse
 // ==========================================================
 api.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
-    
-    // Vérifie si l'erreur est liée à l'authentification (401 Unauthorized ou 403 Forbidden)
+    // Erreurs d'authentification
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-      
-      console.error('API Error 401/403: Token expiré ou invalide. Tentative de déconnexion.');
+      console.error('Token expiré ou invalide. Déconnexion...');
       
       if (typeof window !== 'undefined') {
         localStorage.removeItem('user');
-        window.location.href = '/login'; 
+        authToken = null;
+        window.location.href = '/login';
       }
     }
-
-    // Renvoie l'erreur pour qu'elle puisse être gérée par le `try...catch` du composant
+    
+    // Log détaillé pour debug
+    if (error.response) {
+      console.error(`[API Error] ${error.response.status}: ${error.response.config?.url}`);
+      console.error('Response data:', error.response.data);
+    } else if (error.request) {
+      console.error('[API Error] Pas de réponse du serveur');
+    } else {
+      console.error('[API Error]', error.message);
+    }
+    
     return Promise.reject(error);
   }
 );
